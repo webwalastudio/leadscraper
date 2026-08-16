@@ -269,8 +269,13 @@ def run_scrape(
             time.sleep(delay_seconds)
 
             combo_had_failure = False
+            stopped_mid_combo = False
 
             for place in places:
+                if should_stop and should_stop():
+                    stopped_mid_combo = True
+                    break
+
                 place_id = place.get("id")
                 if not place_id or place_id in seen_place_ids:
                     continue
@@ -315,10 +320,13 @@ def run_scrape(
             # the completed list so the next run re-searches it and retries
             # just the place_ids that weren't successfully resolved
             # (already-successful ones are skipped via seen_place_ids).
-            if not combo_had_failure:
+            if not combo_had_failure and not stopped_mid_combo:
                 completed_combos.add(key)
                 checkpoint["completed_combos"] = sorted(completed_combos)
             checkpoint["seen_place_ids"] = sorted(seen_place_ids)
             save_checkpoint(checkpoint)
+
+            if stopped_mid_combo:
+                return leads_found
 
     return leads_found
