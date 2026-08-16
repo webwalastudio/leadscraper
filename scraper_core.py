@@ -58,6 +58,10 @@ class ConfigError(Exception):
     """Raised when required setup (like the API key) is missing."""
 
 
+class ScrapeStopped(Exception):
+    """Raised to unwind out of a request/retry cycle when the user hit Stop."""
+
+
 # ---------------------------------------------------------------------------
 # Setup helpers
 # ---------------------------------------------------------------------------
@@ -152,10 +156,23 @@ def is_weak_or_missing_website(website: str) -> bool:
 # Google Places API (New) calls
 # ---------------------------------------------------------------------------
 
-def _request_with_retry(method: str, url: str, on_retry=None, **kwargs) -> requests.Response:
+def _interruptible_sleep(seconds: float, should_stop=None) -> None:
+    """Sleep in small ticks so a stop request can cut a long backoff short."""
+    remaining = seconds
+    tick = 1.0
+    while remaining > 0:
+        if should_stop and should_stop():
+            raise ScrapeStopped()
+        time.sleep(min(tick, remaining))
+        remaining -= tick
+
+
+def _request_with_retry(method: str, url: str, on_retry=None, should_stop=None, **kwargs) -> requests.Response:
     """Issue a request, retrying with exponential backoff on 429 / 5xx."""
     response = None
     for attempt in range(MAX_RETRIES + 1):
+        if should_stop and should_stop():
+            raise ScrapeStopped()
         response = requests.request(method, url, timeout=30, **kwargs)
         if response.status_code == 429 or response.status_code >= 500:
             if attempt == MAX_RETRIES:
@@ -163,31 +180,35 @@ def _request_with_retry(method: str, url: str, on_retry=None, **kwargs) -> reque
             wait = RETRY_BASE_DELAY_SECONDS * (2 ** attempt)
             if on_retry:
                 on_retry(response.status_code, wait, attempt + 1, MAX_RETRIES)
-            time.sleep(wait)
+            _interruptible_sleep(wait, should_stop=should_stop)
             continue
         response.raise_for_status()
         return response
     return response  # unreachable, keeps linters happy
 
 
-def search_places(api_key: str, category: str, area: str, on_retry=None) -> list:
+def search_places(api_key: str, category: str, area: str, on_retry=None, should_stop=None) -> list:
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": api_key,
         "X-Goog-FieldMask": SEARCH_FIELD_MASK,
     }
     body = {"textQuery": f"{category} in {area}"}
-    response = _request_with_retry("POST", SEARCH_URL, headers=headers, json=body, on_retry=on_retry)
+    response = _request_with_retry(
+        "POST", SEARCH_URL, headers=headers, json=body, on_retry=on_retry, should_stop=should_stop
+    )
     return response.json().get("places", [])
 
 
-def get_place_details(api_key: str, place_id: str, on_retry=None) -> dict:
+def get_place_details(api_key: str, place_id: str, on_retry=None, should_stop=None) -> dict:
     headers = {
         "X-Goog-Api-Key": api_key,
         "X-Goog-FieldMask": DETAILS_FIELD_MASK,
     }
     url = DETAILS_URL_TEMPLATE.format(place_id=place_id)
-    response = _request_with_retry("GET", url, headers=headers, on_retry=on_retry)
+    response = _request_with_retry(
+        "GET", url, headers=headers, on_retry=on_retry, should_stop=should_stop
+    )
     return response.json()
 
 
@@ -259,7 +280,9 @@ def run_scrape(
                 continue
 
             try:
-                places = search_places(api_key, category, area, on_retry=on_retry)
+                places = search_places(api_key, category, area, on_retry=on_retry, should_stop=should_stop)
+            except ScrapeStopped:
+                return leads_found
             except requests.RequestException as exc:
                 if on_error:
                     on_error(f"searching {category} in {area}", exc)
@@ -281,7 +304,10 @@ def run_scrape(
                     continue
 
                 try:
-                    details = get_place_details(api_key, place_id, on_retry=on_retry)
+                    details = get_place_details(api_key, place_id, on_retry=on_retry, should_stop=should_stop)
+                except ScrapeStopped:
+                    stopped_mid_combo = True
+                    break
                 except requests.RequestException as exc:
                     if on_error:
                         on_error(f"fetching details for {place_id}", exc)
