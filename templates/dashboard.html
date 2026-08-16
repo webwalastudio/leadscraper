@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebWala Studio Lead Scraper</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-border: #262b36;
+    --text: #e6e8ec;
+    --muted: #8a919e;
+    --accent: #4f8cff;
+    --accent-hover: #6ba0ff;
+    --danger: #ff5c5c;
+    --success: #37c26f;
+    --chip-bg: #232838;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; text-align: center; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; text-align: center; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+  .tag-input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .tag-input-row input[type="text"] {
+    flex: 1;
+    background: #0f1219;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-size: 14px;
+  }
+  .tag-input-row button {
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    color: white;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .tag-input-row button:hover { background: var(--accent-hover); }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 28px;
+  }
+  .chip {
+    background: var(--chip-bg);
+    border-radius: 999px;
+    padding: 4px 6px 4px 12px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chips { gap: 10px; }
+  .chip button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    min-width: 28px;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .chip button:hover { color: var(--danger); background: rgba(255,92,92,0.15); }
+  .suggestions {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .suggestion {
+    background: transparent;
+    border: 1px dashed var(--panel-border);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .suggestion:hover { border-color: var(--accent); color: var(--text); }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .controls label { font-size: 13px; color: var(--muted); }
+  .controls input[type="number"] {
+    width: 70px;
+    background: #0f1219;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: var(--text);
+  }
+  .btn {
+    border: none;
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled { background: #2a2f3a; color: var(--muted); cursor: not-allowed; }
+  .btn-secondary { background: transparent; border: 1px solid var(--panel-border); color: var(--text); }
+  .btn-secondary:hover { border-color: var(--muted); }
+  .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+  .btn-danger:hover { background: rgba(255,92,92,0.1); }
+  #estimateResult, #statusLine {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .progress-wrap {
+    background: #0f1219;
+    border-radius: 999px;
+    height: 8px;
+    overflow: hidden;
+    margin: 10px 0;
+  }
+  .progress-bar {
+    background: var(--accent);
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--panel-border);
+    white-space: nowrap;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--panel); }
+  .results-panel { grid-column: 1 / -1; }
+  .table-scroll { max-height: 480px; overflow: auto; border: 1px solid var(--panel-border); border-radius: 8px; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+  }
+  .badge-none { background: rgba(255,92,92,0.15); color: var(--danger); }
+  .badge-weak { background: rgba(255,180,60,0.15); color: #ffb43c; }
+  .top-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+  a.download-link { color: var(--accent); font-size: 13px; text-decoration: none; }
+  a.download-link:hover { text-decoration: underline; }
+  a.wa-link { color: #25d366; text-decoration: none; }
+  a.wa-link:hover { text-decoration: underline; }
+  a.maps-link { color: var(--accent); text-decoration: none; }
+  a.maps-link:hover { text-decoration: underline; }
+  .error-banner {
+    background: rgba(255,92,92,0.12);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .lead-count { color: var(--success); font-weight: 600; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  @media (max-width: 640px) {
+    body { padding: 16px; }
+    .grid { grid-template-columns: 1fr; }
+    .controls { flex-direction: column; align-items: stretch; }
+    .controls label { margin-bottom: -6px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>WebWala Studio Lead Scraper</h1>
+<div class="subtitle">Pick categories and areas, then find businesses with no websites.</div>
+
+<div id="errorBanner" class="error-banner" role="alert" aria-live="assertive"></div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Categories</h2>
+    <label class="sr-only" for="categoryInput">Category name</label>
+    <div class="tag-input-row">
+      <input type="text" id="categoryInput" placeholder="e.g. dentist" />
+      <button onclick="addFromInput('category')">Add</button>
+    </div>
+    <div class="chips" id="categoryChips"></div>
+    <div class="suggestions" id="categorySuggestions"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Areas</h2>
+    <label class="sr-only" for="areaInput">Area name</label>
+    <div class="tag-input-row">
+      <input type="text" id="areaInput" placeholder="e.g. Sector 14 Gurugram" />
+      <button onclick="addFromInput('area')">Add</button>
+    </div>
+    <div class="chips" id="areaChips"></div>
+    <div class="suggestions" id="areaSuggestions"></div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Run</h2>
+  <div class="controls">
+    <label for="delayInput">Delay between requests (seconds)</label>
+    <input type="number" id="delayInput" value="2" min="0" step="0.5" />
+    <button class="btn btn-secondary" onclick="runDryRun()">Estimate cost (dry run)</button>
+    <button class="btn btn-primary" id="startBtn" onclick="startScrape()">Start Scrape</button>
+    <button class="btn btn-danger" id="stopBtn" onclick="stopScrape()" style="display:none;">Stop</button>
+  </div>
+  <div id="estimateResult" aria-live="polite"></div>
+  <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+  <div id="statusLine" aria-live="polite">Idle.</div>
+</div>
+
+<div class="panel results-panel">
+  <div class="top-actions">
+    <h2 style="margin:0;">Leads (<span class="lead-count" id="leadCount">0</span>)</h2>
+    <a class="download-link" href="/download/csv">Download webwala_leads.csv</a>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th><th>Category</th><th>Area</th><th>Address</th>
+          <th>Phone</th><th>Rating</th><th>Reviews</th><th>Website</th>
+        </tr>
+      </thead>
+      <tbody id="leadsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const CATEGORY_SUGGESTIONS = ["dentist", "salon", "restaurant", "school", "gym",
+  "boutique clothing store", "physiotherapist", "interior designer", "cafe", "yoga studio"];
+const AREA_SUGGESTIONS = ["Sector 14 Gurugram", "Sushant Lok Gurugram", "DLF Phase 3 Gurugram",
+  "Sector 29 Gurugram", "Palam Vihar Gurugram", "South City 1 Gurugram"];
+
+let categories = [];
+let areas = [];
+let pollTimer = null;
+
+function renderChips(kind) {
+  const list = kind === "category" ? categories : areas;
+  const container = document.getElementById(kind === "category" ? "categoryChips" : "areaChips");
+  container.innerHTML = "";
+  list.forEach((value, idx) => {
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.innerHTML = `<span></span><button aria-label="Remove">&times;</button>`;
+    chip.querySelector("span").textContent = value;
+    chip.querySelector("button").onclick = () => {
+      list.splice(idx, 1);
+      renderChips(kind);
+    };
+    container.appendChild(chip);
+  });
+}
+
+function renderSuggestions() {
+  const catBox = document.getElementById("categorySuggestions");
+  catBox.innerHTML = "";
+  CATEGORY_SUGGESTIONS.forEach(s => {
+    const btn = document.createElement("button");
+    btn.className = "suggestion";
+    btn.textContent = "+ " + s;
+    btn.onclick = () => addValue("category", s);
+    catBox.appendChild(btn);
+  });
+
+  const areaBox = document.getElementById("areaSuggestions");
+  areaBox.innerHTML = "";
+  AREA_SUGGESTIONS.forEach(s => {
+    const btn = document.createElement("button");
+    btn.className = "suggestion";
+    btn.textContent = "+ " + s;
+    btn.onclick = () => addValue("area", s);
+    areaBox.appendChild(btn);
+  });
+}
+
+function addValue(kind, rawValue) {
+  const list = kind === "category" ? categories : areas;
+  rawValue.split(",").map(v => v.trim()).filter(Boolean).forEach(value => {
+    if (!list.includes(value)) list.push(value);
+  });
+  renderChips(kind);
+}
+
+function addFromInput(kind) {
+  const input = document.getElementById(kind === "category" ? "categoryInput" : "areaInput");
+  if (!input.value.trim()) return;
+  addValue(kind, input.value);
+  input.value = "";
+  input.focus();
+}
+
+["categoryInput", "areaInput"].forEach(id => {
+  document.getElementById(id).addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addFromInput(id === "categoryInput" ? "category" : "area");
+    }
+  });
+});
+
+function showError(message) {
+  const banner = document.getElementById("errorBanner");
+  if (!message) {
+    banner.style.display = "none";
+    return;
+  }
+  banner.textContent = message;
+  banner.style.display = "block";
+}
+
+async function runDryRun() {
+  showError(null);
+  if (categories.length === 0 || areas.length === 0) {
+    showError("Add at least one category and one area first.");
+    return;
+  }
+  const res = await fetch("/api/dry-run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ categories, areas, avg_results: 10 }),
+  });
+  const data = await res.json();
+  document.getElementById("estimateResult").textContent =
+    `${data.combos} searches + ~${data.estimated_detail_calls} detail lookups ≈ ${data.estimated_total_calls} API calls (assumes ~10 results/search).`;
+}
+
+async function startScrape() {
+  showError(null);
+  if (categories.length === 0 || areas.length === 0) {
+    showError("Add at least one category and one area first.");
+    return;
+  }
+  const delaySeconds = parseFloat(document.getElementById("delayInput").value) || 2;
+  const res = await fetch("/api/scrape/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ categories, areas, delay_seconds: delaySeconds }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    showError(data.error || "Could not start scrape.");
+    return;
+  }
+  document.getElementById("startBtn").disabled = true;
+  document.getElementById("stopBtn").style.display = "inline-block";
+  startPolling();
+}
+
+async function stopScrape() {
+  await fetch("/api/scrape/stop", { method: "POST" });
+  document.getElementById("statusLine").textContent = "Stopping after the current business...";
+}
+
+const WHATSAPP_MESSAGE = "Hi, Came across your google profile — noticed you don’t have a website linked yet. A simple, professional site could help customers find you beyond Instagram. I run Webwala Studio we build professional websites. Please DM us for details..";
+
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = value == null ? "" : String(value);
+  return div.innerHTML;
+}
+
+function td(text) {
+  const safe = escapeHtml(text);
+  return `<td title="${safe}">${safe}</td>`;
+}
+
+function whatsAppLink(phone) {
+  const digits = (phone || "").replace(/[^\d]/g, "");
+  if (!digits) return escapeHtml(phone);
+  const url = `https://wa.me/${encodeURIComponent(digits)}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  return `<a class="wa-link" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="${escapeHtml(phone)}">${escapeHtml(phone)}</a>`;
+}
+
+function nameCell(lead) {
+  const name = escapeHtml(lead.name);
+  if (!lead.maps_url || !/^https:\/\//i.test(lead.maps_url)) return name;
+  return `<a class="maps-link" href="${escapeHtml(lead.maps_url)}" target="_blank" rel="noopener" title="${name}">${name}</a>`;
+}
+
+function renderLeadsTable(leads) {
+  const body = document.getElementById("leadsBody");
+  body.innerHTML = "";
+  leads.forEach(lead => {
+    const tr = document.createElement("tr");
+    const websiteLabel = lead.current_website
+      ? `<span class="badge badge-weak" title="${escapeHtml(lead.current_website)}">${escapeHtml(lead.current_website)}</span>`
+      : `<span class="badge badge-none">none</span>`;
+    tr.innerHTML = `
+      <td title="${escapeHtml(lead.name)}">${nameCell(lead)}</td>
+      ${td(lead.category)}
+      ${td(lead.area)}
+      ${td(lead.address)}
+      <td title="${escapeHtml(lead.phone)}">${whatsAppLink(lead.phone)}</td>
+      ${td(lead.rating)}
+      ${td(lead.review_count)}
+      <td>${websiteLabel}</td>
+    `;
+    body.appendChild(tr);
+  });
+  document.getElementById("leadCount").textContent = leads.length;
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollStatus, 1200);
+  pollStatus();
+}
+
+async function pollStatus() {
+  const res = await fetch("/api/scrape/status");
+  const state = await res.json();
+
+  const pct = state.total_combos ? Math.round((state.combo_index / state.total_combos) * 100) : 0;
+  document.getElementById("progressBar").style.width = pct + "%";
+  document.getElementById("statusLine").textContent = state.running
+    ? "In process..."
+    : (state.error ? `Error: ${state.error}` : (state.total_combos ? "Completed." : "Idle."));
+
+  renderLeadsTable(state.leads);
+
+  if (state.error) showError(state.error);
+
+  if (!state.running) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+    document.getElementById("startBtn").disabled = false;
+    document.getElementById("stopBtn").style.display = "none";
+  }
+}
+
+async function loadExistingLeads() {
+  const res = await fetch("/api/leads");
+  const data = await res.json();
+  renderLeadsTable(data.leads);
+}
+
+renderSuggestions();
+loadExistingLeads();
+</script>
+</body>
+</html>

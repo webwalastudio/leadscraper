@@ -1,0 +1,8 @@
+.env
+venv/
+__pycache__/
+*.pyc
+webwala_leads.csv
+webwala_scraper_checkpoint.json
+webwala_leads_partial_backup.csv
+webwala_scraper_checkpoint_backup.json
